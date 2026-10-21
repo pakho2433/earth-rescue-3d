@@ -135,6 +135,9 @@ const rand = (a, b) => a + Math.random() * (b - a);
   const gr = new THREE.InstancedMesh(new THREE.ConeGeometry(0.12, 0.6, 3), M(0x5aa83a), 1500);
   let gi = 0; for (let i = 0; i < 5000 && gi < 1500; i++) { const x = rand(-80, 80), z = rand(-60, 44); if (Math.abs(x + 41) < 7 || Math.hypot(x - Z.hill[0], z - Z.hill[1]) < 14 || Math.hypot(x - Z.ware[0], z - Z.ware[1]) < 11) continue; d.position.set(x, G(x, z) + 0.25, z); d.scale.set(1, rand(0.6, 1.4), 1); d.rotation.set(rand(-.3, .3), rand(0, 3), 0); d.updateMatrix(); gr.setMatrixAt(gi++, d.matrix); }
   gr.count = gi; scene.add(gr);
+  const fl = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.12, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), 500); let fi = 0;
+  for (let i = 0; i < 3000 && fi < 500; i++) { const x = rand(-90, 90), z = rand(-40, 42); if (Math.abs(x + 41) < 7 || Math.hypot(x - Z.hill[0], z - Z.hill[1]) < 15 || Math.hypot(x - Z.ware[0], z - Z.ware[1]) < 11 || Math.hypot(x - Z.canal[0], z - Z.canal[1]) < 20) continue; d.position.set(x, G(x, z) + 0.35, z); d.scale.setScalar(rand(0.7, 1.3)); d.updateMatrix(); fl.setMatrixAt(fi, d.matrix); fl.setColorAt(fi++, new THREE.Color().setHSL([0.0, 0.13, 0.8, 0.95][fi % 4], 0.85, 0.65)); }
+  fl.count = fi; scene.add(fl);
 }
 
 // ---------- player & input ----------
@@ -279,7 +282,7 @@ function spawn(shape, name, x, z, task, kind, extra = {}) { const o = item(shape
 
 // ---------- task framework ----------
 const tasks = []; let ti = 0;
-const SKIP = new Set([1, 6, 9, 10, 11]);
+const SKIP = new Set([1, 6]);
 const active = () => tasks.filter(t => !SKIP.has(t.id));
 const curTask = () => tasks[ti];
 const nextTi = i => { let j = i + 1; while (j < tasks.length && SKIP.has(j)) j++; return j; };
@@ -300,7 +303,7 @@ function updateHUD() {
   $('tbar').firstElementChild.style.width = (100 * Math.min(1, t.done / t.total)) + '%';
   $('tcount').textContent = `${active().filter(x => x.finished).length}/${active().length}`;
 }
-function teleportToTask() { const t = curTask(); if (!t || paused) return; player.pos.set(t.spawn[0], 0, t.spawn[1]); player.yaw = t.spawn[2] ?? 0; player.pitch = -0.2; toast('已傳送到：' + t.zone); }
+function teleportToTask() { const t = curTask(); if (!t || paused) return; player.pos.set(t.spawn[0], groundH(t.spawn[0], t.spawn[1]) + 1.6, t.spawn[1]); player.yaw = t.spawn[2] ?? 0; player.pitch = -0.2; toast('已傳送到：' + t.zone); }
 const beacon = new THREE.Mesh(C(0.5, 0.5, 40, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe36e, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, fog: false })); scene.add(beacon);
 function zoneSign(text, x, z, h = 5) { const y = G(x, z); mesh(C(0.1, 0.1, h, 6), M(0x7a5a3a), x - 1.6, y + h / 2, z); mesh(C(0.1, 0.1, h, 6), M(0x7a5a3a), x + 1.6, y + h / 2, z); label(text, x, y + h, z, 1.3, 'rgba(30,110,60,0.92)'); }
 function crateAt(x, z, txt) { const g = new THREE.Group(); g.position.set(x, G(x, z), z); scene.add(g); mesh(B(1.4, 0.8, 1), M(0xa8743f), 0, 0.4, 0, g); mesh(B(1.5, 0.08, 1.1), M(0x7a4a2a), 0, 0.8, 0, g); label(txt, x, g.position.y + 2.3, z, 0.75); return g; }
@@ -485,9 +488,9 @@ let co2 = 1, hkHaze = 1;
   const heap = mesh(new THREE.ConeGeometry(2.5, 1.5, 9), M(0x1a1a1a), cx - 7, 0.75, cz - 5);
   const smoke = particles(isTouch ? 260 : 420, 0x302a28, 2.4, { opacity: 0.55 }); const active = [1, 1, 1];
   effects.push((dt, T) => { const p = smoke.geometry.attributes.position, sd = smoke.userData.seed; for (let i = 0; i < sd.length; i++) { const c = i % 3; const f = (sd[i] * 4 + T * 0.15) % 1; p.setXYZ(i, cx + 2 + chims[c] + Math.sin(i) * f * 5 + f * 6, active[c] ? 9 + f * 22 : -50, cz - 8.5 + Math.cos(i * 1.3) * f * 5); } p.needsUpdate = true; });
-  const t = defTask({ zone: '發電區', title: '轉用可再生能源', total: 3, spawn: [cx, cz + 13, 0],
-    desc: '燃燒<b>煤</b>發電排出大量<b>二氧化碳</b>！把<span class=hl>風力發電機、太陽能光熱板、水力發電機</span>搬到最合適的平台，每放一個便關掉一支煙囪。',
-    lesson: `<p>過度使用煤和石油 ➜ 排放<b>大量二氧化碳</b> ➜ <b>氣候變化</b>、<b>極端天氣</b>（暴雨、熱浪、乾旱）。</p><p>國家發展<b>可再生能源</b>：🌊 <b>三峽</b>水力發電、☀️ <b>甘肅</b>光熱發電、🌬️ <b>上海</b>海上風電。</p><p>國家作出<b>減排承諾</b>：<span class=hl>2030 年前碳達峰、2060 年前碳中和</span>。</p>` });
+  const t = defTask({ zone: '發電區', title: '轉用可再生能源＋綠色生活', total: 7, spawn: [cx, cz + 13, 0],
+    desc: '燃燒<b>煤</b>發電排出大量<b>二氧化碳</b>！① 把<span class=hl>風力發電機、太陽能光熱板、水力發電機</span>搬到最合適的平台，每放一個便關掉一支煙囪。<br>② 到旁邊<b>綠色生活小店</b>，把 3 件<span class=hl>綠色產品</span>放進購物籃，再<b>乘坐電動車</b>。',
+    lesson: `<p>過度使用煤和石油 ➜ 排放<b>大量二氧化碳</b> ➜ <b>氣候變化</b>、<b>極端天氣</b>（暴雨、熱浪、乾旱）。</p><p>國家發展<b>可再生能源</b>：🌊 <b>三峽</b>水力發電、☀️ <b>甘肅</b>光熱發電、🌬️ <b>上海</b>海上風電。</p><p>國家作出<b>減排承諾</b>：<span class=hl>2030 年前碳達峰、2060 年前碳中和</span>。</p><p>🛒 <b>綠色生活</b>：選購有能源標籤的節能產品、用環保袋、乘坐<b>電動車</b>，人人都能減排！</p>` });
   mesh(B(3, 4, 1), M(0x8a8a84), cx + 10, 2, cz - 0.5); mesh(B(2, 3.6, 0.2), M(0x6ab8f0, { transparent: true, opacity: 0.8, emissive: 0x103050 }), cx + 10, 1.9, cz + 0.1, scene, false);
   const hill = mesh(new THREE.SphereGeometry(3, 12, 6, 0, 6.3, 0, 1.5), M(0x5f9e3a), cx - 10, -1.2, cz + 3); 
   const hint = { wind: '風力發電機要放在風大的山崗平台！', solar: '太陽能光熱板要放在陽光充足的平台！', hydro: '水力發電需要流水，要放在瀑布旁！' };
@@ -501,23 +504,22 @@ let co2 = 1, hkHaze = 1;
   spawn(S.solar, '太陽能光熱板', cx - 5, cz + 9, t.id, 'solar');
   spawn(S.hydro, '水力發電機', cx, cz + 10, t.id, 'hydro');
   t.onDone = () => { heap.visible = false; co2 = 0; };
+  window.__energyTask = t;
 }
 
 // ===== 10. Green shop =====
 {
   const [cx, cz] = Z.shop; zoneSign('綠色生活小店', cx, cz + 8);
   const stall = new THREE.Group(); stall.position.set(cx, 0, cz - 3); scene.add(stall); mesh(B(9.5, 1, 1.6), M(0xc89a5a), 0, 0.5, 0, stall); mesh(B(10, 0.15, 2.6), M(0x3faa4a), 0, 3, 0, stall); for (const x of [-4.6, 4.6]) mesh(C(0.08, 0.08, 3, 6), M(0x777777), x, 1.5, 0.9, stall);
-  const t = defTask({ zone: '綠色生活小店', title: '綠色生活：選購與出行', total: 4, spawn: [cx, cz + 5, 0],
-    desc: '過<b>綠色生活</b>！把<b>節能、環保</b>的產品放進<span class=hl>綠色購物籃</span>（共 3 件），然後<b>乘坐電動車</b>回家。',
-    lesson: `<p><b>綠色生活</b>：每個人都可以減少碳排放，應對氣候變化！</p><ul><li>選購有<b>能源標籤</b>的節能電器、LED 燈等<b>綠色產品</b></li><li>用環保袋，減少即棄產品</li><li>出行選擇<b>電動車</b>、公共交通</li></ul>` });
+  const t = window.__energyTask; let greenN = 0;
   const basket = new THREE.Group(); basket.position.set(cx + 6.5, 0, cz + 1); scene.add(basket); mesh(C(0.7, 0.55, 0.8, 12, 1, true), M(0x3faa4a, { side: THREE.DoubleSide }), 0, 0.4, 0, basket); label('綠色購物籃', cx + 6.5, 1.9, cz + 1, 0.6, 'rgba(30,140,60,0.9)');
-  addSlot(new THREE.Vector3(cx + 6.5, 0.8, cz + 1), '綠色購物籃', t.id, it => it.kind === 'green' ? true : `「${it.name}」不是綠色產品，<br>會浪費能源或製造垃圾！`, it => { it.obj.visible = false; progress(t); }, { multi: true });
+  addSlot(new THREE.Vector3(cx + 6.5, 0.8, cz + 1), '綠色購物籃', t.id, it => it.kind === 'green' ? true : `「${it.name}」不是綠色產品，<br>會浪費能源或製造垃圾！`, it => { it.obj.visible = false; greenN++; progress(t); }, { multi: true });
   [['LED節能燈', 'green', 0xfff6a0], ['一級能源標籤雪櫃', 'green', 0xe0f0ff], ['環保袋', 'green', 0x6cc04a], ['即棄發泡膠飯盒', 'bad', 0xffffff], ['鎢絲燈泡', 'bad', 0xffb040], ['即棄膠樽', 'bad', 0x6fc6ff]]
     .forEach(([n, k, c], i) => spawn(S.box(c), n, cx - 3.9 + i * 1.55, cz - 3, t.id, k, { y: 1.0, labelBg: 'rgba(60,60,60,0.85)' }));
   const ev = new THREE.Group(); ev.position.set(cx - 7.5, 0, cz + 2); scene.add(ev); mesh(B(2, 0.9, 4), M(0x30b0a0, { metalness: .4, roughness: .3 }), 0, 0.7, 0, ev); mesh(B(1.8, 0.7, 2), M(0x223344, { metalness: .5, roughness: .1 }), 0, 1.4, -0.2, ev); for (const [x, z] of [[-1, -1.3], [1, -1.3], [-1, 1.3], [1, 1.3]]) mesh(C(0.35, 0.35, 0.25, 12), M(0x111111), x, 0.35, z, ev).rotation.z = Math.PI / 2;
   label('電動車 ⚡', 0, 2.6, 0, 0.6, null, null, ev);
   let evDrive = false;
-  addSwitch(ev, '電動車', t.id, it => { if (t.done < 3) { toast('先買齊 3 件綠色產品，再乘坐電動車！', 'bad'); return; } it.done = true; evDrive = true; progress(t); toast('電動車零排放出行 🚗⚡'); }, '乘坐');
+  addSwitch(ev, '電動車', t.id, it => { if (greenN < 3) { toast('先買齊 3 件綠色產品，再乘坐電動車！', 'bad'); return; } it.done = true; evDrive = true; progress(t); toast('電動車零排放出行 🚗⚡'); }, '乘坐');
   effects.push(dt => { if (evDrive && ev.position.z > cz - 25) ev.position.z -= dt * 6; });
 }
 
@@ -540,9 +542,10 @@ let co2 = 1, hkHaze = 1;
   const hazes = []; for (let i = 0; i < 4; i++) hazes.push(mesh(new THREE.PlaneGeometry(240, 80), hazeMat, -20, 25, -80 - i * 11, scene, false));
   effects.push(() => { hazeMat.opacity = 0.45 * Math.max(0, hkHaze); hazes.forEach(h => h.visible = hkHaze > 0.02); });
 
-  const t1 = defTask({ zone: '香港街道', title: '停車熄匙', total: 4, spawn: [cx - 6, cz + 4.5, Math.PI / 2],
-    desc: '路邊的車輛<b>停車沒有熄匙</b>，不斷排出廢氣，維港也變得朦朧！走到每輛冒煙的車旁，按動作鍵<span class=hl>熄匙</span>。',
-    lesson: `<p>香港<b>空氣污染</b>的影響：</p><ul><li>😷 <b>危害健康</b>：引致呼吸道疾病</li><li>🌫️ <b>能見度下降</b>：看不清維港景色</li><li>💰 影響<b>經濟</b>：遊客減少、市民生病缺勤</li></ul><p>法例規定<b>停車熄匙</b>，減少路邊廢氣。</p>` });
+  const t3 = defTask({ zone: '香港街道及發電廠', title: '還香港藍天：熄匙、充電、轉燃料、粵港合作', total: 9, spawn: [cx - 6, cz + 4.5, Math.PI / 2],
+    desc: '① 4 輛車<b>停車沒熄匙</b>：按動作鍵<span class=hl>熄匙</span>　② 拿起充電樁的<b>插頭</b>，拉電線插到 2 輛<span class=hl>電動車</span>　③ 把發電廠鍋爐前的<b>煤</b>搬去回收區，放入<span class=hl>天然氣罐</span>　④ 按<b>粵港空氣監測站</b>，與廣東合作！',
+    lesson: `<p>香港<b>空氣污染</b>：😷 危害健康、🌫️ 能見度下降、💰 影響經濟（旅遊業、生產力）。</p><p>改善措施：</p><ul><li>🚗 <b>停車熄匙</b></li><li>🔌 推廣<b>電動車</b></li><li>🏭 <b>發電廠</b>減少燒煤，<b>改用較清潔的天然氣</b></li><li>🤝 <b>與廣東省合作</b>，共同減少區域空氣污染</li></ul><p>維港的景色重新清晰了！</p>` });
+  const t1 = t3;
   const exhaust = particles(200, 0x555048, 0.9, { opacity: 0.6 }); const cars = [];
   for (let i = 0; i < 4; i++) {
     const x = cx - 15 + i * 8, z = cz - 2; const car = new THREE.Group(); car.position.set(x, 0, z); car.rotation.y = Math.PI / 2; scene.add(car);
@@ -554,9 +557,7 @@ let co2 = 1, hkHaze = 1;
   }
   effects.push((dt, T) => { const p = exhaust.geometry.attributes.position, sd = exhaust.userData.seed; for (let i = 0; i < sd.length; i++) { const c = cars[i % 4]; const f = (sd[i] * 3 + T * 0.5) % 1; p.setXYZ(i, c.on ? c.x - 2.3 - f * 2.5 : 0, c.on ? 0.4 + f * 1.4 : -50, c.z + Math.sin(i + T) * f * 0.7); } p.needsUpdate = true; for (const c of cars) if (c.on) c.car.position.y = Math.sin(T * 40 + c.x) * 0.012; });
 
-  const t2 = defTask({ zone: '香港街道', title: '電動車充電', total: 2, spawn: [cx + 15, cz + 4, -Math.PI / 2 - 0.4],
-    desc: '把充電樁的<b>充電插頭拿起，拉着電線</b>，插到<span class=hl>電動車的充電口</span>。',
-    lesson: `<p><b>電動車</b>行駛時不排放廢氣，可以改善路邊空氣質素。</p><p>政府增設充電設施，鼓勵市民和公共交通轉用電動車。</p>` });
+  const t2 = t3;
   const cables = [];
   [[cx + 17, cz + 6], [cx + 21, cz + 6]].forEach(([x, z]) => {
     const ch = new THREE.Group(); ch.position.set(x, 0, z); scene.add(ch); mesh(B(0.7, 1.6, 0.5), M(0x2fa84f), 0, 0.8, 0, ch); mesh(B(0.5, 0.3, 0.05), M(0x111111, { emissive: 0x003300 }), 0, 1.3, -0.26, ch);
@@ -570,9 +571,7 @@ let co2 = 1, hkHaze = 1;
   const tv = new THREE.Vector3(), lv = new THREE.Vector3();
   effects.push(() => { for (const c of cables) { c.plug.obj.getWorldPosition(tv); tv.y += 0.12; const sag = Math.max(0.1, 1.2 - c.from.distanceTo(tv) * 0.12); const p = c.line.geometry.attributes.position; for (let i = 0; i < 14; i++) { const f = i / 13; lv.copy(c.from).lerp(tv, f); lv.y -= Math.sin(f * Math.PI) * sag; p.setXYZ(i, lv.x, lv.y, lv.z); } p.needsUpdate = true; } });
 
-  const t3 = defTask({ zone: '香港發電廠', title: '發電廠轉用天然氣＋粵港合作', total: 3, spawn: [cx - 13, cz + 4, Math.PI / 2 + 0.3],
-    desc: '① 把鍋爐前的<b>煤</b>搬去<b>回收區</b>　② 把<span class=hl>天然氣罐</span>放進鍋爐　③ 按<b>粵港空氣監測站</b>按鈕，與廣東合作減排！',
-    lesson: `<p>香港改善空氣質素的措施：</p><ul><li>🚗 <b>停車熄匙</b></li><li>🔌 推廣<b>電動車</b></li><li>🏭 <b>發電廠</b>減少燒煤，<b>改用較清潔的天然氣</b></li><li>🤝 <b>與廣東省合作</b>，共同減少區域空氣污染</li></ul><p>維港的景色重新清晰了！</p>` });
+
   const pp = new THREE.Group(); pp.position.set(cx - 19, 0, cz - 7); scene.add(pp); mesh(B(8, 6, 5), M(0xb8b0a8), 0, 3, 0, pp); mesh(C(0.7, 1, 12, 12), M(0xd0c8c0), 2.5, 6, -1, pp);
   label('香港發電廠', cx - 19, 7.6, cz - 4.2, 0.9, 'rgba(90,40,30,0.9)');
   const furnace = mesh(B(2, 1.4, 0.4), M(0x3a2a20, { emissive: 0x802000 }), cx - 19, 0.9, cz - 4.4);
@@ -586,7 +585,7 @@ let co2 = 1, hkHaze = 1;
   effects.push((dt, T) => { const p = ps.geometry.attributes.position, sd = ps.userData.seed; for (let i = 0; i < sd.length; i++) { const f = (sd[i] * 3 + T * 0.15) % 1; p.setXYZ(i, cx - 16.5 + f * 8 + Math.sin(i) * f * 3, sd[i] < plantSmoke ? 12 + f * 16 : -50, cz - 8 - f * 4); } p.needsUpdate = true; ps.material.color.set(plantSmoke < 1 ? 0xdddddd : 0x3a3430); });
   const mon = new THREE.Group(); mon.position.set(cx - 7, 0, cz + 5.5); scene.add(mon); mesh(B(1.2, 2.4, 1.2), M(0xeeeeee), 0, 1.2, 0, mon); mesh(C(0.04, 0.04, 1.4, 4), M(0x888888), 0, 3.1, 0, mon); const mlamp = mesh(new THREE.SphereGeometry(0.2, 8, 6), M(0xff3030, { emissive: 0x880000 }), 0, 2.0, -0.62, mon);
   label('粵港空氣監測站', cx - 7, 4.6, cz + 5.5, 0.75, 'rgba(30,80,160,0.9)');
-  addSwitch(mon, '粵港空氣監測站', t3.id, it => { if (t3.done < 2) { mistakes++; toast('先完成發電廠轉用天然氣！', 'bad'); return; } it.done = true; mlamp.material.color.set(0x30ff60); mlamp.material.emissive.set(0x00aa30); hkHaze = 0; progress(t3); toast('🤝 粵港合作減排，區域空氣變清新！'); }, '與廣東合作');
+  addSwitch(mon, '粵港空氣監測站', t3.id, it => { if (t3.done < 8) { mistakes++; toast('先完成熄匙、電動車充電和發電廠轉用天然氣！', 'bad'); return; } it.done = true; mlamp.material.color.set(0x30ff60); mlamp.material.emissive.set(0x00aa30); hkHaze = 0; progress(t3); toast('🤝 粵港合作減排，區域空氣變清新！'); }, '與廣東合作');
 }
 
 // ---------- atmosphere ----------
@@ -669,10 +668,11 @@ $('start').addEventListener('click', begin); $('start').addEventListener('touchs
 // ---------- test hooks ----------
 window.game = {
   tasks, slots, inter, player, renderer, scene, ground, groundH, get ti() { return ti; }, get score() { return score; }, get carried() { return carried; }, get focus() { return focus; },
-  begin, teleport: teleportToTask, action, look(yaw, pitch) { player.yaw = yaw; player.pitch = pitch; }, at(x, z, yaw = 0, pitch = -0.15) { player.pos.set(x, 0, z); player.yaw = yaw; player.pitch = pitch; },
+  begin, teleport: teleportToTask, action, look(yaw, pitch) { player.yaw = yaw; player.pitch = pitch; }, at(x, z, yaw = 0, pitch = -0.15) { player.pos.set(x, groundH(x, z) + 1.6, z); player.yaw = yaw; player.pitch = pitch; },
   closeModal() { const g = document.querySelector('#card .go'); if (g && $('modal').style.display !== 'none') g.click(); },
   solveCurrent() {
     const t = curTask(); let guard = 0;
+    if (carried) { const s0 = slots.find(s => s.task === t.id && s.enabled && (!s.filled || s.multi) && s.accepts(carried) === true); if (s0) placeInSlot(carried, s0); }
     while (t.done < t.total && guard++ < 50) {
       const pend = inter.filter(i => i.task === t.id && !i.done);
       const push = pend.find(i => i.type === 'push'); if (push) { const s = push.slotList.find(s => !s.filled); push.obj.position.set(s.pos.x, s.pos.y, s.pos.z + 0.5); pushBlock(push, 0.1, 0, -1); continue; }
