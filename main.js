@@ -279,7 +279,10 @@ function spawn(shape, name, x, z, task, kind, extra = {}) { const o = item(shape
 
 // ---------- task framework ----------
 const tasks = []; let ti = 0;
+const SKIP = new Set([1, 6, 9, 10, 11]);
+const active = () => tasks.filter(t => !SKIP.has(t.id));
 const curTask = () => tasks[ti];
+const nextTi = i => { let j = i + 1; while (j < tasks.length && SKIP.has(j)) j++; return j; };
 const effects = [];
 function defTask(t) { t.id = tasks.length; t.done = 0; tasks.push(t); return t; }
 function progress(t, n = 1) { t.done += n; updateHUD(); if (t.done >= t.total) setTimeout(() => completeTask(t), 1100); }
@@ -287,15 +290,15 @@ function completeTask(t) {
   if (t.finished) return; t.finished = true; addScore(30); sfx(660, .15); sfx(880, .15, .12); sfx(1180, .25, .24);
   if (carried) { scene.remove(carried.obj); carried = null; }
   t.onDone && t.onDone(); updateHUD();
-  const last = t.id === tasks.length - 1;
-  showModal(`<h1>✅ 完成：${t.title}</h1>${t.lesson}`, last ? '查看成績 🎉' : '下一個任務 ➡', () => { if (last) finale(); else { ti++; startTask(); } });
+  const last = nextTi(t.id) >= tasks.length;
+  showModal(`<h1>✅ 完成：${t.title}</h1>${t.lesson}`, last ? '查看成績 🎉' : '下一個任務 ➡', () => { if (last) finale(); else { ti = nextTi(ti); startTask(); } });
 }
 function startTask() { const t = curTask(); slots.forEach(s => { s.marker.visible = s.task === t.id && s.enabled && (!s.filled || s.multi); }); t.onStart && t.onStart(); updateHUD(); toast('新任務：' + t.title + '<br><small>跟着黃色箭咀前往，或按「傳送到任務」</small>', 'good', 3); }
 function updateHUD() {
   const t = curTask(); if (!t) return;
-  $('ttitle').textContent = `任務 ${t.id + 1}／${tasks.length}：${t.title}`; $('tdesc').innerHTML = t.desc + ` <b>(${Math.min(t.done, t.total)}/${t.total})</b>`;
+  $('ttitle').textContent = `任務 ${active().indexOf(t) + 1}／${active().length}：${t.title}`; $('tdesc').innerHTML = t.desc + ` <b>(${Math.min(t.done, t.total)}/${t.total})</b>`;
   $('tbar').firstElementChild.style.width = (100 * Math.min(1, t.done / t.total)) + '%';
-  $('tcount').textContent = `${tasks.filter(x => x.finished).length}/${tasks.length}`;
+  $('tcount').textContent = `${active().filter(x => x.finished).length}/${active().length}`;
 }
 function teleportToTask() { const t = curTask(); if (!t || paused) return; player.pos.set(t.spawn[0], 0, t.spawn[1]); player.yaw = t.spawn[2] ?? 0; player.pitch = -0.2; toast('已傳送到：' + t.zone); }
 const beacon = new THREE.Mesh(C(0.5, 0.5, 40, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe36e, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, fog: false })); scene.add(beacon);
@@ -440,6 +443,7 @@ let sandStorm = 1.01;
   addDispenser(disp, '固沙植物', t2.id, () => ({ type: 'pickup', obj: item(S.shrub, '固沙植物'), name: '固沙植物', kind: 'shrub', task: t2.id }));
   const sand = particles(isTouch ? 350 : 600, 0xd8b070, 0.4, { opacity: 0.7 });
   effects.push((dt, T) => { const p = sand.geometry.attributes.position, sd = sand.userData.seed; for (let i = 0; i < sd.length; i++) { const f = (sd[i] * 9 + T * 0.35) % 1; const on = sd[i] < sandStorm; const x = Math.sin(i * 3.7) * 14, z = 72 - f * 36; p.setXYZ(i, x, on ? G(x, z) + 0.3 + Math.abs(Math.sin(i + T)) * 1.5 : -50, z); } p.needsUpdate = true; });
+  t.onDone = () => { if (SKIP.has(t2.id)) { sandStorm = 0; recolorGround((x, z, c) => { if (z > 43 && z < 51 && Math.abs(x) < 10) { c.lerp(new THREE.Color(0x8aa84a), 0.6); return true; } }); } };
   t2.onDone = () => recolorGround((x, z, c) => { if (z > 43 && z < 51 && Math.abs(x) < 10) { c.lerp(new THREE.Color(0x8aa84a), 0.6); return true; } });
 }
 
